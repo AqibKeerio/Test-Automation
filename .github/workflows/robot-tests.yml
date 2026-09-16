@@ -1,0 +1,50 @@
+name: Robot Framework Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: "Robot tag(s) to include (leave empty to run all)"
+        required: false
+        default: ""
+
+jobs:
+  robot-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Set up Chrome
+        uses: browser-actions/setup-chrome@v1
+
+      - name: Run Robot Framework tests
+        run: |
+          if [ -n "${{ github.event.inputs.tags }}" ]; then
+            robot --outputdir results --include "${{ github.event.inputs.tags }}" -v HEADLESS:True -v BROWSER:headlesschrome tests/
+          else
+            robot --outputdir results -v HEADLESS:True -v BROWSER:headlesschrome tests/
+          fi
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: robot-framework-results
+          path: results/
+          retention-days: 14
